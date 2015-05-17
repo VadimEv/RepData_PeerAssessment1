@@ -1,0 +1,104 @@
+---
+title: 'Reproducible Research: Peer Assessment 1'
+author: "VadimEv"
+date: "16 may 2015"
+output: html_document
+---
+
+### Loading and preprocessing data
+In this chunk we load and preprocess data for analysis.
+First, read the data from csv
+
+```{r}
+DT <-read.csv("activity.csv")
+```
+Now lets have a quick look at what we just loaded:
+```{r}
+head(DT)
+```
+So we see records of number of steps, date at which this record was recorded and interval, during which data was gathered.
+
+### What is mean total number of steps taken per day?
+In first part we calculate a number of steps taken each day
+```{r}
+DTdailysum <- aggregate(list(steps = DT$steps), list(date = DT$date), sum)
+```
+We can have a quick look at it, but not to make big textwalls present I use head, if you willing to, just replace head with view:
+```{r}
+head(DTdailysum)
+```
+lets calculate mean value of steps taken daily:
+```{r}
+mean(DTdailysum$steps, na.rm = TRUE)
+```
+and now we gonna make histogram plot of steps taken each day 
+
+```{r}
+hist(DTdailysum$steps, xlab ="total daily steps", main = "Total steps distribution")
+```
+</br>
+As we are allready calculated mean, now only median value is needed:
+```{r}
+median(DTdailysum$steps, na.rm=TRUE)
+```
+### What is the average daily activity pattern?
+To figure this out we gonna calculate number of steps in each 5 min time interval, averaged by day
+```{r}
+fsteps <-aggregate(data=DT, steps~interval, FUN = mean, na.action = na.omit)
+```
+and plot it with ggplot:
+```{r}
+library(ggplot2)
+ggplot(data = fsteps, aes(interval, steps )) + geom_line()
+```
+</br>
+now lets find the interval during which maximum number of steps was taken, first we gonna find value itself:
+```{r}
+maxstp <- max(fsteps$steps, na.rm=TRUE)
+maxstp
+```
+and find which interval was it:
+```{r}
+fsteps[fsteps$steps == maxstp,]
+```
+so the interval is between 835th and 840 minute.
+
+### Imputing missing values
+Now we need to handle missing values, first of all we should count them:
+```{r}
+sum(is.na(DT$steps))
+```
+In my opinion, the best strategy is to replace all NA with zeros. Why should we invent something? 
+```{r}
+DT[is.na(DT)] <- 0
+```
+Lets have a look at how data changed with this, and calculate total number of steps taken each day, as well as median and mean values:
+```{r}
+DTdailysumN <- aggregate(list(steps = DT$steps), list(date = DT$date), sum)
+mean(DTdailysumN$steps, na.rm = TRUE)
+median(DTdailysumN$steps, na.rm = TRUE)
+```
+and make a histogram of this new data:
+```{r}
+hist(DTdailysumN$steps, xlab ="total daily steps", main = "Total steps distribution with NA removed")
+```
+</br>
+As we can see, distribution changed according to addition of zero values. 
+
+### Are there differences in activity patterns between weekdays and weekends?
+To answer this question we need to introduce new column to the dataset, indicating if the day is weekend of not. Add a column for weekday:
+```{r}
+DT$weekday = weekdays(as.Date(DT$date))
+```
+and another column for weekday type, and convert it into factor:
+```{r}
+DT$type <- ifelse(DT$weekday == "Saturday" | DT$weekday == "Sunday", "Weekend", "Weekday")
+DT$type <- as.factor(DT$type)
+```
+To see the differences lets compare daily activity on weekend and on a weekday, but before we need to aggregate data as before taking day type into account:
+```{r}
+fsteps <-aggregate(data=DT, steps~ type + interval, FUN = mean, na.action = na.omit)
+ggplot(data = fsteps, aes(interval, steps )) + geom_line() + facet_grid(.~type)
+```
+</br>
+GGplot2 works really well here, and we can clearly see that patterns differ pretty significantly.
